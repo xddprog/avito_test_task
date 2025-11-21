@@ -14,6 +14,7 @@ import (
 type TeamRepository interface {
 	Create(ctx context.Context, team *entity.Team) error
 	GetByName(ctx context.Context, name string) (*entity.Team, error)
+	DeactivateMembers(ctx context.Context, teamName string, userIDs []string) ([]string, error)
 }
 
 type teamRepo struct {
@@ -82,8 +83,8 @@ func (r *teamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 	}
 
 	rows, err := r.db.Query(
-		ctx, 
-		`SELECT id, username, is_active, team_name FROM users WHERE team_name = $1`, 
+		ctx,
+		`SELECT id, username, is_active, team_name FROM users WHERE team_name = $1`,
 		name,
 	)
 	if err != nil {
@@ -108,4 +109,45 @@ func (r *teamRepo) GetByName(ctx context.Context, name string) (*entity.Team, er
 		Name:    teamName,
 		Members: members,
 	}, nil
+}
+
+func (r *teamRepo) DeactivateMembers(ctx context.Context, teamName string, userIDs []string) ([]string, error) {
+	if teamName == "" || len(userIDs) == 0 {
+		return nil, entity.ErrBadRequest
+	}
+
+	var exists bool
+	if err := r.db.QueryRow(ctx, `SELECT true FROM teams WHERE name = $1`, teamName).Scan(&exists); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, entity.ErrNotFound
+		}
+		return nil, err
+	}
+
+	rows, err := r.db.Query(ctx, `
+		UPDATE users
+		SET is_active = false
+		WHERE team_name = $1 AND id = ANY($2) AND is_active = true
+		RETURNING id
+	`, teamName, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var affected []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		affected = append(affected, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if affected == nil {
+		affected = []string{}
+	}
+	return affected, nil
 }

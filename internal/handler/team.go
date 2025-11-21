@@ -17,7 +17,6 @@ func NewTeamHandler(teamService service.TeamService) *TeamHandler {
 	return &TeamHandler{teamService: teamService}
 }
 
-
 func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 	var req entity.CreateTeamRequest
 
@@ -61,4 +60,22 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.WriteOK(w, http.StatusOK, team)
+}
+
+func (h *TeamHandler) DeactivateMembers(w http.ResponseWriter, r *http.Request) {
+	var req entity.DeactivateTeamMembersRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteError(w, entity.ErrBadRequest)
+		return
+	}
+
+	result, err := h.teamService.DeactivateMembers(r.Context(), &req)
+	if err != nil {
+		utils.WriteError(w, err)
+		return
+	}
+
+	utils.WriteOK(w, http.StatusOK, map[string]any{
+		"result": result,
+	})
 }

@@ -1,17 +1,16 @@
 package handler
 
 import (
-	"embed"
 	"net/http"
+	"path/filepath"
 )
-
-
-var swaggerUI embed.FS
 
 func NewRouter(
 	user *UserHandler,
 	team *TeamHandler,
 	pr *PullRequestHandler,
+	stats *StatsHandler,
+	health *HealthHandler,
 	openAPISpecPath string,
 ) *http.ServeMux {
 	mux := http.NewServeMux()
@@ -21,17 +20,21 @@ func NewRouter(
 
 	mux.HandleFunc("GET  /team/get", team.GetTeam)
 	mux.HandleFunc("POST /team/add", team.AddTeam)
+	mux.HandleFunc("POST /team/deactivate", team.DeactivateMembers)
 
 	mux.HandleFunc("POST /pullRequest/create", pr.CreatePullRequest)
 	mux.HandleFunc("POST /pullRequest/merge", pr.MergePullRequest)
 	mux.HandleFunc("POST /pullRequest/reassign", pr.ReassignPullRequest)
+	mux.HandleFunc("GET /stats/summary", stats.Summary)
+	mux.HandleFunc("GET /health", health.Check)
 
 	mux.HandleFunc("/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		http.ServeFile(w, r, openAPISpecPath)
 	})
 
-	swaggerHandler := http.StripPrefix("/swagger/", http.FileServer(http.FS(swaggerUI)))
+	swaggerDir := filepath.Join(filepath.Dir(openAPISpecPath), "swagger")
+	swaggerHandler := http.StripPrefix("/swagger/", http.FileServer(http.Dir(swaggerDir)))
 	mux.Handle("/swagger/", swaggerHandler)
 
 	return mux

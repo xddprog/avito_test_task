@@ -18,6 +18,8 @@ type PullRequestRepository interface {
 	GetByID(ctx context.Context, id string) (*entity.PullRequest, error)
 	Merge(ctx context.Context, id string) (*entity.PullRequest, error)
 	Reassign(ctx context.Context, prID, oldUserID, newUserID string) error
+	GetOpenAssignmentsForUsers(ctx context.Context, userIDs []string) ([]entity.ReviewerAssignment, error)
+	ApplyReviewerReplacements(ctx context.Context, replacements []entity.ReassignmentResult) error
 }
 
 type prRepo struct {
@@ -116,11 +118,13 @@ func (r *prRepo) Merge(ctx context.Context, id string) (*entity.PullRequest, err
 	}
 
 	now := time.Now()
-	_, err = tx.Exec(ctx, `
+	var mergedAt *time.Time
+	err = tx.QueryRow(ctx, `
 		UPDATE pull_requests 
 		SET status = $1, merged_at = $2
 		WHERE id = $3
-	`, entity.StatusMerged, now, id)
+		RETURNING merged_at
+	`, entity.StatusMerged, now, id).Scan(&mergedAt)
 
 	if err != nil {
 		return nil, err
@@ -131,7 +135,7 @@ func (r *prRepo) Merge(ctx context.Context, id string) (*entity.PullRequest, err
 	}
 
 	pr.Status = entity.StatusMerged
-	pr.MergedAt = &now
+	pr.MergedAt = mergedAt
 	return pr, nil
 }
 
@@ -152,6 +156,92 @@ func (r *prRepo) Reassign(ctx context.Context, prID, oldUserID, newUserID string
 
 	_, err = tx.Exec(ctx, `INSERT INTO pr_reviewers (pr_id, user_id) VALUES ($1, $2)`, prID, newUserID)
 	if err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (r *prRepo) GetOpenAssignmentsForUsers(ctx context.Context, userIDs []string) ([]entity.ReviewerAssignment, error) {
+	if len(userIDs) == 0 {
+		return []entity.ReviewerAssignment{}, nil
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT
+			pr.id,
+			pr.author_id,
+			prr.user_id AS old_reviewer_id,
+			(
+				SELECT ARRAY_AGG(prr2.user_id)
+				FROM pr_reviewers prr2
+				WHERE prr2.pr_id = pr.id
+			) AS reviewers
+		FROM pull_requests pr
+		JOIN pr_reviewers prr ON pr.id = prr.pr_id
+		WHERE pr.status = $1
+		  AND prr.user_id = ANY($2)
+	`, entity.StatusOpen, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var assignments []entity.ReviewerAssignment
+	for rows.Next() {
+		var assignment entity.ReviewerAssignment
+		if err := rows.Scan(
+			&assignment.PullRequestID,
+			&assignment.AuthorID,
+			&assignment.OldReviewerID,
+			&assignment.Reviewers,
+		); err != nil {
+			return nil, err
+		}
+		assignments = append(assignments, assignment)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if assignments == nil {
+		assignments = []entity.ReviewerAssignment{}
+	}
+	return assignments, nil
+}
+
+func (r *prRepo) ApplyReviewerReplacements(ctx context.Context, replacements []entity.ReassignmentResult) error {
+	if len(replacements) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	batch := &pgx.Batch{}
+	for _, repl := range replacements {
+		batch.Queue(`
+			DELETE FROM pr_reviewers
+			WHERE pr_id = $1 AND user_id = $2
+		`, repl.PullRequestID, repl.OldReviewerID)
+
+		batch.Queue(`
+			INSERT INTO pr_reviewers (pr_id, user_id)
+			VALUES ($1, $2)
+			ON CONFLICT DO NOTHING
+		`, repl.PullRequestID, repl.NewReviewerID)
+	}
+
+	br := tx.SendBatch(ctx, batch)
+	for range replacements {
+		if _, err := br.Exec(); err != nil {
+			br.Close()
+			return err
+		}
+	}
+	if err := br.Close(); err != nil {
 		return err
 	}
 

@@ -45,17 +45,21 @@ func main() {
 	userRepository := repository.NewUserRepository(db)
 	pullRequestRepository := repository.NewPullRequestRepository(db)
 	teamRepository := repository.NewTeamRepository(db)
+	statsRepository := repository.NewStatsRepository(db)
 
 	userService := service.NewUserService(userRepository)
 	pullRequestService := service.NewPullRequestService(pullRequestRepository, userRepository)
-	teamService := service.NewTeamService(teamRepository)
+	teamService := service.NewTeamService(teamRepository, pullRequestRepository, pullRequestService, userRepository)
+	statsService := service.NewStatsService(statsRepository)
 
 	userHandler := handler.NewUserHandler(userService)
 	pullRequestHandler := handler.NewPullRequestHandler(pullRequestService)
 	teamHandler := handler.NewTeamHandler(teamService)
+	statsHandler := handler.NewStatsHandler(statsService)
+	healthHandler := handler.NewHealthHandler()
 
 	openAPISpecPath := filepath.Join(workDir, "api", "openapi.yml")
-	mux := handler.NewRouter(userHandler, teamHandler, pullRequestHandler, openAPISpecPath)
+	mux := handler.NewRouter(userHandler, teamHandler, pullRequestHandler, statsHandler, healthHandler, openAPISpecPath)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTP.Address(),

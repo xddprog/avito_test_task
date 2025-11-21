@@ -122,6 +122,21 @@ components:
           enum: [OPEN, MERGED]
 
 paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Проверка состояния сервиса
+      responses:
+        '200':
+          description: Сервис доступен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
   /team/add:
     post:
       tags: [Teams]
@@ -171,6 +186,62 @@ paths:
                   code: TEAM_EXISTS
                   message: team_name already exists
 
+  /team/deactivate:
+    post:
+      tags: [Teams]
+      summary: Массовая деактивация пользователей команды с безопасным переназначением
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ team_name, user_ids ]
+              properties:
+                team_name:
+                  type: string
+                user_ids:
+                  type: array
+                  items:
+                    type: string
+            example:
+              team_name: backend
+              user_ids: [u2, u3]
+      responses:
+        '200':
+          description: Пользователи деактивированы, PR обработаны
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    properties:
+                      deactivated_user_ids:
+                        type: array
+                        items: { type: string }
+                      successful_reassignments:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            pull_request_id: { type: string }
+                            old_reviewer_id: { type: string }
+                            new_reviewer_id: { type: string }
+                      failed_reassignments:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            pull_request_id: { type: string }
+                            old_reviewer_id: { type: string }
+                            error: { type: string }
+        '400':
+          description: Некорректный запрос (например, пустой список user_ids)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
   /team/get:
     get:
       tags: [Teams]
@@ -391,6 +462,66 @@ paths:
                   value:
                     error: { code: NO_CANDIDATE, message: no active replacement candidate in team }
 
+  /stats/summary:
+    get:
+      tags: [Stats]
+      summary: Сводная статистика по ревью и PR
+      responses:
+        '200':
+          description: Агрегированная статистика
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stats:
+                    type: object
+                    properties:
+                      reviewer_assignments:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            user_id:
+                              type: string
+                            assignments:
+                              type: integer
+                      pr_status:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          open:
+                            type: integer
+                          merged:
+                            type: integer
+                          average_reviewers:
+                            type: number
+                      team_members:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            team_name:
+                              type: string
+                            active_members:
+                              type: integer
+                            inactive_members:
+                              type: integer
+                      pr_lifetime:
+                        type: object
+                        properties:
+                          average_merge:
+                            type: object
+                            properties:
+                              days:
+                                type: integer
+                              hours:
+                                type: integer
+                              minutes:
+                                type: integer
+                          open_older_than_7_days:
+                            type: integer
   /users/getReview:
     get:
       tags: [Users]
