@@ -35,7 +35,7 @@ func (r *prRepo) Create(ctx context.Context, pr *entity.PullRequest) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	_, err = tx.Exec(ctx, `
 		INSERT INTO pull_requests (id, name, author_id, status, created_at)
@@ -106,7 +106,7 @@ func (r *prRepo) Merge(ctx context.Context, id string) (*entity.PullRequest, err
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	pr, err := r.GetByID(ctx, id)
 	if err != nil {
@@ -144,7 +144,7 @@ func (r *prRepo) Reassign(ctx context.Context, prID, oldUserID, newUserID string
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	tag, err := tx.Exec(ctx, `DELETE FROM pr_reviewers WHERE pr_id = $1 AND user_id = $2`, prID, oldUserID)
 	if err != nil {
@@ -218,7 +218,7 @@ func (r *prRepo) ApplyReviewerReplacements(ctx context.Context, replacements []e
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	batch := &pgx.Batch{}
 	for _, repl := range replacements {

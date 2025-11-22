@@ -3,13 +3,12 @@ package db
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
-
 
 func RunMigrations(migrationsPath string, databaseURL string) error {
 	m, err := migrate.New(migrationsPath, databaseURL)
@@ -19,12 +18,12 @@ func RunMigrations(migrationsPath string, databaseURL string) error {
 
 	if err := m.Up(); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
-			log.Println("Migrations: no changes")
+			slog.Info("migrations: no changes")
 			return nil
 		}
 		return fmt.Errorf("failed to run migrate up: %w", err)
 	}
 
-	log.Println("Migrations: successfully applied")
+	slog.Info("migrations: successfully applied")
 	return nil
 }

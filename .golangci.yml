@@ -1,0 +1,49 @@
+
+run:
+  modules-download-mode: readonly
+  issues-exit-code: 1
+output:
+  path-prefix: ""
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - gocritic
+    - godot
+    - gomoddirectives
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - nolintlint
+    - reassign
+    - revive
+    - sqlclosecheck
+    - staticcheck
+    - testableexamples
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - wastedassign
+  settings:
+    revive:
+      rules:
+        - name: var-naming
+          disabled: true
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports

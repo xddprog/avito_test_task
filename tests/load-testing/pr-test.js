@@ -8,7 +8,7 @@ export const options = {
       exec: 'create_pr',
       rate: 5,
       timeUnit: '1s',
-      duration: '1m',
+      duration: '2m',
       preAllocatedVUs: 10,
       maxVUs: 20,
     },
@@ -17,7 +17,7 @@ export const options = {
       exec: 'get_team',
       rate: 3,
       timeUnit: '1s',
-      duration: '1m',
+      duration: '2m',
       preAllocatedVUs: 5,
       maxVUs: 10,
     },
@@ -26,7 +26,7 @@ export const options = {
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 
-// --- Создание Pull Request ---
+
 export function create_pr() {
   const url = `${BASE_URL}/pullRequest/create`;
 
@@ -51,9 +51,8 @@ export function create_pr() {
   sleep(0.1);
 }
 
-// --- Получение команды по имени ---
 export function get_team() {
-  const teamName = 'payments'; // можно заменить на любую существующую команду
+  const teamName = 'payments';
   const url = `${BASE_URL}/team/get?team_name=${teamName}`;
 
   const res = http.get(url);

@@ -12,7 +12,7 @@ func NewHealthHandler() *HealthHandler {
 	return &HealthHandler{}
 }
 
-func (h *HealthHandler) Check(w http.ResponseWriter, r *http.Request) {
+func (h *HealthHandler) Check(w http.ResponseWriter, _ *http.Request) {
 	utils.WriteOK(w, 200, map[string]string{
 		"status": "OK",
 	})

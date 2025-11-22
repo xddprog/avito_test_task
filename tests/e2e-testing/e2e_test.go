@@ -15,10 +15,6 @@ import (
 
 var httpClient = &http.Client{Timeout: 10 * time.Second}
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
 type teamMember struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
@@ -235,8 +231,9 @@ func TestPullRequestCreateDuplicate(t *testing.T) {
 	teamName := fmt.Sprintf("dup-pr-%s", randomID("team"))
 	members := []teamMember{{UserID: randomID("user"), Username: "author", IsActive: true}, {UserID: randomID("user"), Username: "r1", IsActive: true}}
 	createTeam(t, baseURL, teamName, members)
+	prID := randomID("pr-dup")
 	payload := map[string]string{
-		"pull_request_id":   "pr-dup",
+		"pull_request_id":   prID,
 		"pull_request_name": "feature/dup",
 		"author_id":         members[0].UserID,
 	}
@@ -529,8 +526,6 @@ func TestUserGetReviewScenarios(t *testing.T) {
 	}
 }
 
-// helpers
-
 func requireBaseURL(t *testing.T) string {
 	baseURL := os.Getenv("E2E_BASE_URL")
 	if baseURL == "" {
@@ -603,10 +598,12 @@ func decodeJSON[T any](t *testing.T, data []byte, out *T) {
 }
 
 func createTeam(t *testing.T, baseURL string, teamName string, members []teamMember) {
+	t.Helper()
 	doRequest(t, http.MethodPost, baseURL+"/team/add", createTeamRequest{TeamName: teamName, Members: members}, http.StatusCreated)
 }
 
 func getTeam(t *testing.T, baseURL, teamName string) teamEntity {
+	t.Helper()
 	body := doRequest(t, http.MethodGet, fmt.Sprintf("%s/team/get?team_name=%s", baseURL, teamName), nil, http.StatusOK)
 	var team teamEntity
 	decodeJSON(t, body, &team)
@@ -614,6 +611,7 @@ func getTeam(t *testing.T, baseURL, teamName string) teamEntity {
 }
 
 func deactivateTeam(t *testing.T, baseURL, teamName string, userIDs []string, expected int) deactivateResponse {
+	t.Helper()
 	payload := map[string]any{"team_name": teamName, "user_ids": userIDs}
 	body := doRequest(t, http.MethodPost, baseURL+"/team/deactivate", payload, expected)
 	var resp deactivateResponse

@@ -8,9 +8,14 @@ import (
 )
 
 type Config struct {
-
 	HTTP     HTTPConfig
 	Postgres PostgresConfig
+	Log      LogConfig
+}
+
+type LogConfig struct {
+	Level  string `env:"LOG_LEVEL" env-default:"INFO"`
+	Format string `env:"LOG_FORMAT" env-default:"text"`
 }
 
 type HTTPConfig struct {
@@ -32,7 +37,6 @@ type PostgresConfig struct {
 	SSLMode  string `env:"POSTGRES_SSLMODE" env-default:"disable"`
 }
 
-
 func (p PostgresConfig) DSN() string {
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
@@ -44,7 +48,6 @@ func (p PostgresConfig) DSN() string {
 		p.SSLMode,
 	)
 }
-
 
 func Load() (*Config, error) {
 	cfg := &Config{}

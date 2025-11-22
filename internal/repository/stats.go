@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"math"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -92,7 +93,7 @@ func (r *statsRepo) GetPRStatus(ctx context.Context) (entity.PRStatusStat, error
 			GROUP BY pr_id
 		) AS counts
 	`).Scan(&avg)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return entity.PRStatusStat{}, err
 	}
 	if avg.Valid {
@@ -141,7 +142,7 @@ func (r *statsRepo) GetPRLifetime(ctx context.Context) (entity.PRLifetimeStat, e
 		FROM pull_requests
 		WHERE status = $1 AND merged_at IS NOT NULL
 	`, entity.StatusMerged).Scan(&averageSeconds)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return entity.PRLifetimeStat{}, err
 	}
 	lifetime := entity.PRLifetimeStat{

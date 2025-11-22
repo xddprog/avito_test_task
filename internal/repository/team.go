@@ -32,7 +32,7 @@ func (r *teamRepo) Create(ctx context.Context, team *entity.Team) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	_, err = tx.Exec(ctx, `INSERT INTO teams (name) VALUES ($1)`, team.Name)
 	if err != nil {

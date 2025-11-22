@@ -133,8 +133,8 @@ func selectRandomReviewers(candidates []entity.User, authorID string, excludeIDs
 		}
 	}
 
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	rand.Shuffle(len(valid), func(i, j int) {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng.Shuffle(len(valid), func(i, j int) {
 		valid[i], valid[j] = valid[j], valid[i]
 	})
 
